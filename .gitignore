@@ -1,0 +1,57 @@
+# Archivos sensibles — NUNCA subir al repositorio
+.env
+vendor/
+composer.lock
+
+# Backups de base de datos
+*.sql
+!schema.sql
+
+# Archivos de backup
+*.bak
+*.orig
+
+# Archivos subidos por usuarios (se gestionan en el servidor)
+public/img/socios/*
+!public/img/socios/.gitkeep
+public/img/productos/*
+!public/img/productos/.gitkeep
+public/sri/xml/*
+!public/sri/xml/.gitkeep
+public/sri/certificados/*
+!public/sri/certificados/.gitkeep
+public/cert/*
+
+# PHP
+*.log
+*.cache
+*.tmp
+
+# Docker (solo para desarrollo local)
+docker-compose.override.yml
+
+# IDE y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# PDFs generados
+public/sri/pdf/*
+!public/sri/pdf/.gitkeep
+
+# Archivos comprimidos y binarios grandes (no van al repo)
+*.zip
+*.rar
+*.7z
+*.pdf
+
+# Archivos de IDE y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+public/sri/pdf/*
+!public/sri/pdf/.gitkeep

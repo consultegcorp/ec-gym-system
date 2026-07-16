@@ -1,0 +1,7 @@
+.git
+.env
+ec_gym-system.zip
+Manual_Instalacion_GymSystem.pdf
+public/Manual_Facturacion_SRI.pdf
+public/sri/xml/*
+public/sri/certificados/*
