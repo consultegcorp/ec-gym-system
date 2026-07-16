@@ -53,8 +53,14 @@ jobs:
           script: |
             cd ${{ secrets.DEPLOY_PATH }}
 
-            echo "🔧 Generando .env desde secret ENV_FILE..."
-            echo "${{ secrets.ENV_FILE }}" > .env
+            echo "🔧 Generando .env desde secrets..."
+            cat > .env << 'ENVEOF'
+            APP_PORT=${{ secrets.APP_PORT }}
+            DB_DATABASE=${{ secrets.DB_DATABASE }}
+            DB_USERNAME=${{ secrets.DB_USERNAME }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}
+            ENVEOF
             chmod 600 .env
 
             echo "🐳 Construyendo y levantando contenedores..."
