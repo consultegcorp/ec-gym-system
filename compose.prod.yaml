@@ -1,0 +1,62 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ec-gym-system-app
+    ports:
+      - "127.0.0.1:${APP_PORT:-8082}:80"
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-ec_gym_system}
+      DB_USERNAME: ${DB_USERNAME:-gym_user}
+      DB_PASSWORD: ${DB_PASSWORD:-}
+    volumes:
+      # Solo persisten los archivos subidos por los usuarios
+      - app_uploads_img_socios:/var/www/html/public/img/socios
+      - app_uploads_img_productos:/var/www/html/public/img/productos
+      - app_uploads_sri_xml:/var/www/html/public/sri/xml
+      - app_uploads_sri_certificados:/var/www/html/public/sri/certificados
+      - app_uploads_sri_pdf:/var/www/html/public/sri/pdf
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ec-gym-network
+
+  db:
+    image: mysql:8.4
+    container_name: ec-gym-system-db
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-ec_gym_system}
+      MYSQL_USER: ${DB_USERNAME:-gym_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-}
+      TZ: America/Guayaquil
+    volumes:
+      - ec_gym_mysql_data:/var/lib/mysql
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-database.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u${MYSQL_USER:-gym_user} -p${MYSQL_PASSWORD:-} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - ec-gym-network
+    # MySQL sin publicar al VPS: solo accesible desde la red interna
+
+volumes:
+  ec_gym_mysql_data:
+  app_uploads_img_socios:
+  app_uploads_img_productos:
+  app_uploads_sri_xml:
+  app_uploads_sri_certificados:
+  app_uploads_sri_pdf:
+
+networks:
+  ec-gym-network:
+    name: ec-gym-network

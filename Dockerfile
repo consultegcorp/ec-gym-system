@@ -13,10 +13,16 @@ RUN apt-get update \
     && a2enmod rewrite headers \
     && rm -rf /var/lib/apt/lists/*
 
+# Composer para instalar dependencias en el build
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
 WORKDIR /var/www/html
 COPY . /var/www/html
 
-RUN mkdir -p public/img/socios public/img/productos public/sri/xml public/sri/certificados \
+# Instalar dependencias PHP de producción
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
+RUN mkdir -p public/img/socios public/img/productos public/sri/xml public/sri/certificados public/sri/pdf \
     && chown -R www-data:www-data public/img public/sri
 
 EXPOSE 80

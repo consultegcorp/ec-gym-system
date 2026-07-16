@@ -4,12 +4,11 @@ on:
   push:
     branches:
       - main
-      - master
-  workflow_dispatch: # Permite ejecución manual desde GitHub
+  workflow_dispatch:
 
 jobs:
   deploy:
-    name: Deploy to Hostinger VPS
+    name: Deploy to /var/www/ec-gym-system
     runs-on: ubuntu-latest
 
     steps:
@@ -17,56 +16,35 @@ jobs:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Configurar PHP ──────────────────────────────────────────
-      - name: 🐘 Setup PHP 8.2
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          extensions: curl, gd, pdo_mysql, zip, mbstring
-          tools: composer:v2
-
-      # ── 3. Validar composer.json ────────────────────────────────────
-      - name: ✅ Validate composer.json
-        run: composer validate --no-check-publish --strict
-
-      # ── 4. Instalar dependencias de producción ──────────────────────
-      - name: 📦 Install Composer dependencies (production)
+      # ── 2. Limpiar archivos innecesarios antes de rsync ──────────────
+      - name: 🧹 Clean up dev files
         run: |
-          composer install --no-dev --optimize-autoloader --no-interaction --no-progress
-
-      # ── 5. Preparar artefacto de despliegue ─────────────────────────
-      - name: 🧹 Clean up files not needed in production
-        run: |
-          rm -rf .git .github .gitignore compose.yaml DOCKER.md Dockerfile
+          rm -rf .git .github .gitignore compose.yaml DOCKER.md
           rm -rf .env.example generar_manual.php seeder.php
-          # Eliminar backups y archivos de desarrollo
           find . -name "*.bak" -delete 2>/dev/null || true
           find . -name "*.sql" -path "*/bk_*" -delete 2>/dev/null || true
 
-      # ── 6. Crear archivo .env en el servidor ────────────────────────
-      - name: 🔧 Generar .env para producción
-        run: |
-          cat > .env << 'EOF'
-          DB_HOST=${{ secrets.DB_HOST }}
-          DB_PORT=${{ secrets.DB_PORT }}
-          DB_DATABASE=${{ secrets.DB_DATABASE }}
-          DB_USERNAME=${{ secrets.DB_USERNAME }}
-          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-          EOF
-
-      # ── 7. Desplegar vía rsync ───────────────────────────────────────
-      - name: 🚀 Deploy via rsync
+      # ── 3. Sincronizar código al VPS ─────────────────────────────────
+      - name: 🚀 Rsync code to VPS
         uses: burnett01/rsync-deployments@7.0.2
         with:
-          switches: -avz --delete --exclude='.env' --exclude='public/img/socios/' --exclude='public/img/productos/' --exclude='public/sri/xml/' --exclude='public/sri/certificados/' --exclude='public/cert/'
+          switches: -avz --delete
+            --exclude='.env'
+            --exclude='vendor/'
+            --exclude='public/img/socios/'
+            --exclude='public/img/productos/'
+            --exclude='public/sri/xml/'
+            --exclude='public/sri/certificados/'
+            --exclude='public/sri/pdf/'
+            --exclude='public/cert/'
           path: ./
           remote_path: ${{ secrets.DEPLOY_PATH }}
           remote_host: ${{ secrets.HOSTINGER_HOST }}
           remote_user: ${{ secrets.HOSTINGER_USER }}
           remote_key: ${{ secrets.HOSTINGER_SSH_KEY }}
 
-      # ── 8. Post-deploy: permisos y comandos finales ──────────────────
-      - name: ⚙️ Run post-deploy commands
+      # ── 4. Generar .env y levantar contenedores ──────────────────────
+      - name: ⚙️ Docker Compose up
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.HOSTINGER_HOST }}
@@ -75,16 +53,17 @@ jobs:
           script: |
             cd ${{ secrets.DEPLOY_PATH }}
 
-            echo "📁 Ajustando permisos de directorios..."
-            chmod -R 755 public/
-            chmod -R 777 public/img/socios/ public/img/productos/
-            chmod -R 777 public/sri/xml/ public/sri/certificados/ public/cert/
+            echo "🔧 Generando .env desde secret ENV_FILE..."
+            echo "${{ secrets.ENV_FILE }}" > .env
+            chmod 600 .env
 
-            echo "📦 Ejecutando composer install en el servidor..."
-            /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction --no-progress 2>/dev/null || \
-            /usr/bin/composer install --no-dev --optimize-autoloader --no-interaction --no-progress 2>/dev/null || \
-            php composer.phar install --no-dev --optimize-autoloader --no-interaction --no-progress 2>/dev/null || \
-            echo "⚠️  Composer no encontrado en el servidor. Ejecuta 'composer install' manualmente."
+            echo "🐳 Construyendo y levantando contenedores..."
+            docker compose -f compose.prod.yaml -p ec-gym-system up -d --build
 
-            echo "✅ ¡Despliegue completado con éxito!"
-            echo "📍 $(date '+%Y-%m-%d %H:%M:%S') — Deploy realizado desde GitHub Actions" >> deploy.log
+            echo "📁 Asegurando permisos en volúmenes..."
+            docker exec ec-gym-system-app chown -R www-data:www-data /var/www/html/public/img /var/www/html/public/sri 2>/dev/null || true
+
+            echo ""
+            echo "✅ Despliegue completado — $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "📍 App accesible en 127.0.0.1:8082 (proxy inverso desde Nginx)"
+            docker compose -f compose.prod.yaml -p ec-gym-system ps

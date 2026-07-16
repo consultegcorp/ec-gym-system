@@ -27,7 +27,7 @@ services:
       TZ: America/Guayaquil
     volumes:
       - gym_mysql_data:/var/lib/mysql
-      - ./bk_basededatos.sql:/docker-entrypoint-initdb.d/01-database.sql:ro
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-database.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 5s
