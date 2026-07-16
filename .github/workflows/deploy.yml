@@ -63,8 +63,28 @@ jobs:
             ENVEOF
             chmod 600 .env
 
+            # Exportar variables para usarlas en el script
+            export $(grep -v '^#' .env | xargs)
+
             echo "🐳 Construyendo y levantando contenedores..."
             docker compose -f compose.prod.yaml -p ec-gym-system up -d --build
+
+            echo "⏳ Esperando que MySQL esté healthy..."
+            until docker exec ec-gym-system-db mysqladmin ping -h localhost --silent 2>/dev/null; do
+              sleep 2
+            done
+
+            echo "🗄️ Verificando tablas en la base de datos..."
+            TABLE_COUNT=$(docker exec ec-gym-system-db mysql -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" -sN -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_DATABASE}'" 2>/dev/null || echo "0")
+            if [ "$TABLE_COUNT" = "0" ]; then
+              echo "📥 Importando schema.sql (${DB_DATABASE})..."
+              docker exec -i ec-gym-system-db mysql -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" < schema.sql
+              echo "✅ Schema importado correctamente."
+              echo "🔄 Reiniciando app para que detecte las tablas..."
+              docker restart ec-gym-system-app
+            else
+              echo "✅ La base ya tiene $TABLE_COUNT tablas, no se reimporta."
+            fi
 
             echo "📁 Asegurando permisos en volúmenes..."
             docker exec ec-gym-system-app chown -R www-data:www-data /var/www/html/public/img /var/www/html/public/sri 2>/dev/null || true
