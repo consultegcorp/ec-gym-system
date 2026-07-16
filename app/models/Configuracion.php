@@ -12,7 +12,16 @@ class Configuracion {
         $query = "SELECT * FROM " . $this->table_name . " WHERE id = 1 LIMIT 1";
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result ?: [
+            'nombre_sistema' => 'EC Gym System',
+            'ruc' => '',
+            'direccion' => '',
+            'telefono' => '',
+            'email' => '',
+            'logo' => '',
+            'moneda' => 'USD'
+        ];
     }
 
     // --- ACTUALIZADO CON MONEDA ---
@@ -45,7 +54,16 @@ class Configuracion {
         $query = "SELECT * FROM configuracion WHERE id = 1 LIMIT 1";
         $stmt = $conn->prepare($query);
         $stmt->execute();
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result ?: [
+            'nombre_sistema' => 'EC Gym System',
+            'ruc' => '',
+            'direccion' => '',
+            'telefono' => '',
+            'email' => '',
+            'logo' => '',
+            'moneda' => 'USD'
+        ];
     }
 
     /**
