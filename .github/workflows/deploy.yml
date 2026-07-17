@@ -86,43 +86,36 @@ jobs:
               echo "✅ La base ya tiene $TABLE_COUNT tablas, no se reimporta."
             fi
 
-            echo "🩹 Ejecutando migraciones pendientes (columnas/tablas nuevas)..."
-            docker exec ec-gym-system-db mysql -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" -e "
-              -- socios: facturacion electronica
-              ALTER TABLE socios ADD COLUMN IF NOT EXISTS tipo_doc VARCHAR(1) DEFAULT '1' COMMENT '1=DNI,6=RUC,4=CE,7=PAS';
-              ALTER TABLE socios ADD COLUMN IF NOT EXISTS direccion_fiscal VARCHAR(255) DEFAULT NULL;
+            echo "🩹 Ejecutando migraciones pendientes..."
+            for stmt in \
+              "ALTER TABLE socios ADD COLUMN tipo_doc VARCHAR(1) DEFAULT '1'" \
+              "ALTER TABLE socios ADD COLUMN direccion_fiscal VARCHAR(255) DEFAULT NULL" \
+              "ALTER TABLE suscripciones ADD COLUMN comprobante_id INT DEFAULT NULL" \
+              "ALTER TABLE suscripciones ADD COLUMN tipo_comprobante VARCHAR(20) DEFAULT 'boleta'" \
+              "ALTER TABLE ventas ADD COLUMN descuento DECIMAL(10,2) DEFAULT 0.00" \
+              "ALTER TABLE ventas ADD COLUMN tipo_comprobante VARCHAR(20) DEFAULT NULL" \
+              "ALTER TABLE ventas ADD COLUMN cliente_tipo_doc VARCHAR(2) DEFAULT NULL" \
+              "ALTER TABLE ventas ADD COLUMN cliente_num_doc VARCHAR(20) DEFAULT NULL" \
+              "ALTER TABLE ventas ADD COLUMN cliente_razon VARCHAR(255) DEFAULT NULL" \
+              "ALTER TABLE ventas ADD COLUMN cliente_direccion VARCHAR(255) DEFAULT NULL" \
+              "ALTER TABLE ventas ADD COLUMN comprobante_id INT DEFAULT NULL" \
+              "ALTER TABLE gastos ADD COLUMN estado ENUM('creado','anulado') DEFAULT 'creado'" \
+              "ALTER TABLE gastos ADD COLUMN motivo_anulacion VARCHAR(255) DEFAULT NULL" \
+              "ALTER TABLE configuracion ADD COLUMN razon_social VARCHAR(255) DEFAULT NULL" \
+              "ALTER TABLE configuracion ADD COLUMN nombre_comercial VARCHAR(255) DEFAULT NULL" \
+              "ALTER TABLE configuracion ADD COLUMN sri_ambiente ENUM('1','2') DEFAULT '1'" \
+              "ALTER TABLE configuracion ADD COLUMN sri_establecimiento VARCHAR(3) DEFAULT '001'" \
+              "ALTER TABLE configuracion ADD COLUMN sri_punto_emision VARCHAR(3) DEFAULT '001'" \
+              "ALTER TABLE configuracion ADD COLUMN sri_certificado_p12 VARCHAR(255) DEFAULT NULL" \
+              "ALTER TABLE configuracion ADD COLUMN sri_certificado_clave VARCHAR(255) DEFAULT NULL" \
+              "ALTER TABLE configuracion ADD COLUMN iva_tasa DECIMAL(5,2) DEFAULT 15.00" \
+              "ALTER TABLE configuracion ADD COLUMN incluye_iva TINYINT(1) DEFAULT 1" \
+            ; do
+              docker exec ec-gym-system-db mysql -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" -e "$stmt" 2>&1 || true
+            done
 
-              -- suscripciones: comprobantes SRI
-              ALTER TABLE suscripciones ADD COLUMN IF NOT EXISTS comprobante_id INT DEFAULT NULL;
-              ALTER TABLE suscripciones ADD COLUMN IF NOT EXISTS tipo_comprobante VARCHAR(20) DEFAULT 'boleta';
-
-              -- ventas: datos de cliente y comprobante
-              ALTER TABLE ventas ADD COLUMN IF NOT EXISTS descuento DECIMAL(10,2) DEFAULT 0.00;
-              ALTER TABLE ventas ADD COLUMN IF NOT EXISTS tipo_comprobante VARCHAR(20) DEFAULT NULL;
-              ALTER TABLE ventas ADD COLUMN IF NOT EXISTS cliente_tipo_doc VARCHAR(2) DEFAULT NULL;
-              ALTER TABLE ventas ADD COLUMN IF NOT EXISTS cliente_num_doc VARCHAR(20) DEFAULT NULL;
-              ALTER TABLE ventas ADD COLUMN IF NOT EXISTS cliente_razon VARCHAR(255) DEFAULT NULL;
-              ALTER TABLE ventas ADD COLUMN IF NOT EXISTS cliente_direccion VARCHAR(255) DEFAULT NULL;
-              ALTER TABLE ventas ADD COLUMN IF NOT EXISTS comprobante_id INT DEFAULT NULL;
-
-              -- gastos: estado y motivo de anulacion
-              ALTER TABLE gastos ADD COLUMN IF NOT EXISTS estado ENUM('creado','anulado') DEFAULT 'creado';
-              ALTER TABLE gastos ADD COLUMN IF NOT EXISTS motivo_anulacion VARCHAR(255) DEFAULT NULL;
-
-              -- configuracion: datos SRI Ecuador
-              ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS razon_social VARCHAR(255) DEFAULT NULL;
-              ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS nombre_comercial VARCHAR(255) DEFAULT NULL;
-              ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS sri_ambiente ENUM('1','2') DEFAULT '1';
-              ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS sri_establecimiento VARCHAR(3) DEFAULT '001';
-              ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS sri_punto_emision VARCHAR(3) DEFAULT '001';
-              ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS sri_certificado_p12 VARCHAR(255) DEFAULT NULL;
-              ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS sri_certificado_clave VARCHAR(255) DEFAULT NULL;
-              ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS iva_tasa DECIMAL(5,2) DEFAULT 15.00;
-              ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS incluye_iva TINYINT(1) DEFAULT 1;
-            " 2>/dev/null || true
-
-            echo "🩹 Creando tablas SRI si no existen..."
-            docker exec -i ec-gym-system-db mysql -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" < app/config/migration_sri.sql 2>/dev/null || true
+            echo "🩹 Creando tablas SRI..."
+            docker exec -i ec-gym-system-db mysql -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" < app/config/migration_sri.sql 2>&1 || true
 
             echo "✅ Migraciones aplicadas."
 
