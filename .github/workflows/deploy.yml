@@ -115,7 +115,40 @@ jobs:
             done
 
             echo "🩹 Creando tablas SRI..."
-            docker exec -i ec-gym-system-db mysql -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" < app/config/migration_sri.sql 2>&1 || true
+            docker exec ec-gym-system-db mysql -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" -e "
+              CREATE TABLE IF NOT EXISTS sri_series (
+                id INT NOT NULL AUTO_INCREMENT,
+                tipo_doc VARCHAR(2) NOT NULL,
+                serie VARCHAR(6) NOT NULL,
+                correlativo INT NOT NULL DEFAULT 0,
+                descripcion VARCHAR(120) DEFAULT NULL,
+                estado ENUM('activo','inactivo') DEFAULT 'activo',
+                PRIMARY KEY (id),
+                UNIQUE KEY unq_tipo_serie (tipo_doc, serie)
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            " || true
+
+            docker exec ec-gym-system-db mysql -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" -e "
+              INSERT IGNORE INTO sri_series (tipo_doc, serie, correlativo, descripcion) VALUES
+                ('01','001001',0,'Facturas electrónicas'),
+                ('04','001001',0,'Notas de crédito electrónicas');
+            " || true
+
+            docker exec ec-gym-system-db mysql -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" -e "
+              CREATE TABLE IF NOT EXISTS sri_log (
+                id INT NOT NULL AUTO_INCREMENT,
+                comprobante_id INT DEFAULT NULL,
+                accion VARCHAR(40) NOT NULL,
+                request_xml MEDIUMTEXT DEFAULT NULL,
+                response_xml MEDIUMTEXT DEFAULT NULL,
+                codigo VARCHAR(10) DEFAULT NULL,
+                mensaje TEXT DEFAULT NULL,
+                creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY idx_comp_log (comprobante_id),
+                KEY idx_accion (accion)
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            " || true
 
             echo "✅ Migraciones aplicadas."
 
